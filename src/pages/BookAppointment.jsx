@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getLoggedInUser, getDB, setDB, DB_KEYS } from '../utils/db';
 import { Calendar, Clock, MessageSquare, ShieldCheck, Stethoscope, ChevronRight, AlertCircle, CalendarCheck2 } from 'lucide-react';
 
 export default function BookAppointment() {
   const navigate = useNavigate();
+  const location = useLocation();
   const patient = getLoggedInUser();
 
   const departments = getDB(DB_KEYS.DEPARTMENTS).filter(d => d.status === 'Active');
@@ -12,9 +13,12 @@ export default function BookAppointment() {
   const schedules = getDB(DB_KEYS.SCHEDULES).filter(s => s.status === 'Active');
   const appointments = getDB(DB_KEYS.APPOINTMENTS);
 
+  const initialDept = location.state?.preselectedDept || '';
+  const initialDoctorId = location.state?.preselectedDoctorId || '';
+
   // Form states
-  const [selectedDept, setSelectedDept] = useState('');
-  const [selectedDoctorId, setSelectedDoctorId] = useState('');
+  const [selectedDept, setSelectedDept] = useState(initialDept);
+  const [selectedDoctorId, setSelectedDoctorId] = useState(initialDoctorId);
   const [selectedDate, setSelectedDate] = useState('');
   const [selectedSlot, setSelectedSlot] = useState('');
   const [reason, setReason] = useState('');
@@ -28,21 +32,32 @@ export default function BookAppointment() {
   // Filtered doctors based on selected department
   const filteredDoctors = doctors.filter(doc => doc.department === selectedDept);
 
-  // Reset states when selections change
+  // Keep track of previous selections to trigger resets only on active manual changes
+  const prevDeptRef = useRef(initialDept);
+  const prevDoctorRef = useRef(initialDoctorId);
+
+  // Reset states when selections change manually
   useEffect(() => {
-    setSelectedDoctorId('');
-    setSelectedDate('');
-    setSelectedSlot('');
-    setAvailableSlots([]);
-    setValidationError('');
+    if (prevDeptRef.current !== selectedDept) {
+      setSelectedDoctorId('');
+      setSelectedDate('');
+      setSelectedSlot('');
+      setAvailableSlots([]);
+      setValidationError('');
+      prevDeptRef.current = selectedDept;
+    }
   }, [selectedDept]);
 
   useEffect(() => {
-    setSelectedDate('');
-    setSelectedSlot('');
-    setAvailableSlots([]);
-    setValidationError('');
+    if (prevDoctorRef.current !== selectedDoctorId) {
+      setSelectedDate('');
+      setSelectedSlot('');
+      setAvailableSlots([]);
+      setValidationError('');
+      prevDoctorRef.current = selectedDoctorId;
+    }
   }, [selectedDoctorId]);
+
 
   // Compute available slots whenever Doctor or Date changes
   useEffect(() => {
