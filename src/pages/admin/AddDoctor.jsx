@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../../components/Sidebar';
-import { getDB, setDB, DB_KEYS } from '../../utils/db';
+import { getDB, setDB, DB_KEYS, encodePassword } from '../../utils/db';
 import { ArrowLeft, UserPlus, ShieldCheck, AlertCircle } from 'lucide-react';
 
 export default function AddDoctor() {
@@ -81,16 +81,32 @@ export default function AddDoctor() {
       name: newDoctor.doctorName,
       email: newDoctor.email,
       role: 'doctor',
-      password: 'doctor123', // Default credentials for QA review
+      password: encodePassword('doctor123'), // Default credentials for QA review
       phone: newDoctor.phone
+    };
+
+    // 3. Create default active schedule configuration
+    const newSchedule = {
+      scheduleId: 'sch_' + newDocId,
+      doctorId: newDocId,
+      doctorName: newDoctor.doctorName,
+      department: newDoctor.department,
+      availableDays: newDoctor.availableDays,
+      startTime: "09:00",
+      endTime: "17:00",
+      slotDuration: 30,
+      status: "Active"
     };
 
     // Save to localStorage
     const updatedDocs = [...doctors, newDoctor];
     const updatedUsers = [...users, newDoctorUser];
+    const schedules = getDB(DB_KEYS.SCHEDULES);
+    const updatedSchedules = [...schedules, newSchedule];
 
     setDB(DB_KEYS.DOCTORS, updatedDocs);
     setDB(DB_KEYS.USERS, updatedUsers);
+    setDB(DB_KEYS.SCHEDULES, updatedSchedules);
 
     // Redirect to doctors list
     navigate('/admin/manage-doctors');

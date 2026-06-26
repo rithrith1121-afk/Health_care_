@@ -51,6 +51,12 @@ export default function CreateSchedule() {
     const doctorObj = doctors.find((d) => d.doctorId === selectedDoctorId);
     const schedules = getDB(DB_KEYS.SCHEDULES);
 
+    const hasSchedule = schedules.some((s) => s.doctorId === selectedDoctorId);
+    if (hasSchedule) {
+      setError('A schedule configuration already exists for this doctor. Please edit the existing schedule in Manage Schedules instead.');
+      return;
+    }
+
     const newSchedule = {
       scheduleId: 'sch' + Date.now(),
       doctorId: selectedDoctorId,

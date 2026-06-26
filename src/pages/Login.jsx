@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Stethoscope, Eye, EyeOff, KeyRound, Mail, ShieldAlert } from 'lucide-react';
-import { getDB, setLoggedInUser, DB_KEYS } from '../utils/db';
+import { getDB, setLoggedInUser, DB_KEYS, decodePassword } from '../utils/db';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -35,7 +35,7 @@ export default function Login() {
       return;
     }
 
-    if (matchedUser.password !== password) {
+    if (decodePassword(matchedUser.password) !== password && matchedUser.password !== password) {
       setError('Incorrect password. Please try again.');
       return;
     }

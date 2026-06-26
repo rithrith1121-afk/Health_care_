@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Stethoscope, User, Mail, KeyRound, Phone, Calendar, Heart, ShieldCheck, ShieldAlert } from 'lucide-react';
-import { getDB, setDB, DB_KEYS } from '../utils/db';
+import { getDB, setDB, DB_KEYS, encodePassword } from '../utils/db';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -41,7 +41,7 @@ export default function Register() {
       name,
       email: email.toLowerCase(),
       role: 'patient',
-      password,
+      password: encodePassword(password),
       phone,
       gender,
       dob

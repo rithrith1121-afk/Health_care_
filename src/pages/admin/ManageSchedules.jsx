@@ -25,10 +25,23 @@ export default function ManageSchedules() {
   });
 
   const handleDelete = (schId) => {
-    if (window.confirm('Are you sure you want to delete this schedule configuration?')) {
+    if (window.confirm('Are you sure you want to delete this schedule configuration? All pending/confirmed appointments for this doctor will be cancelled.')) {
+      const schToDelete = schedules.find((s) => s.scheduleId === schId);
+      if (!schToDelete) return;
+
       const updated = schedules.filter((s) => s.scheduleId !== schId);
       setDB(DB_KEYS.SCHEDULES, updated);
       setSchedules(updated);
+
+      // Cancel appointments
+      const appointments = getDB(DB_KEYS.APPOINTMENTS);
+      const updatedAppointments = appointments.map((apt) => {
+        if (apt.doctorId === schToDelete.doctorId && (apt.status === 'Pending' || apt.status === 'Confirmed')) {
+          return { ...apt, status: 'Cancelled' };
+        }
+        return apt;
+      });
+      setDB(DB_KEYS.APPOINTMENTS, updatedAppointments);
     }
   };
 

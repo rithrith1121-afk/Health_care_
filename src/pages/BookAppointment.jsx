@@ -8,10 +8,10 @@ export default function BookAppointment() {
   const location = useLocation();
   const patient = getLoggedInUser();
 
-  const departments = getDB(DB_KEYS.DEPARTMENTS).filter(d => d.status === 'Active');
-  const doctors = getDB(DB_KEYS.DOCTORS).filter(d => d.status === 'Available');
-  const schedules = getDB(DB_KEYS.SCHEDULES).filter(s => s.status === 'Active');
-  const appointments = getDB(DB_KEYS.APPOINTMENTS);
+  const departments = React.useMemo(() => getDB(DB_KEYS.DEPARTMENTS).filter(d => d.status === 'Active'), []);
+  const doctors = React.useMemo(() => getDB(DB_KEYS.DOCTORS).filter(d => d.status === 'Available'), []);
+  const schedules = React.useMemo(() => getDB(DB_KEYS.SCHEDULES).filter(s => s.status === 'Active'), []);
+  const [appointments, setAppointments] = useState(() => getDB(DB_KEYS.APPOINTMENTS));
 
   const initialDept = location.state?.preselectedDept || '';
   const initialDoctorId = location.state?.preselectedDoctorId || '';
@@ -156,8 +156,11 @@ export default function BookAppointment() {
       return;
     }
 
+    // Fetch latest database state directly to prevent race condition
+    const latestAppointments = getDB(DB_KEYS.APPOINTMENTS);
+
     // Prevent duplicate booking (same patient, same doctor, same date, same slot)
-    const isDuplicate = appointments.some(
+    const isDuplicate = latestAppointments.some(
       (apt) => 
         apt.patientId === patient.id &&
         apt.doctorId === selectedDoctorId &&
@@ -168,6 +171,29 @@ export default function BookAppointment() {
 
     if (isDuplicate) {
       setValidationError('You already have an appointment booked with this doctor at this specific time.');
+      return;
+    }
+
+    // Prevent concurrency race condition (slot booked by another patient)
+    const isSlotTaken = latestAppointments.some(
+      (apt) =>
+        apt.doctorId === selectedDoctorId &&
+        apt.appointmentDate === selectedDate &&
+        apt.timeSlot === selectedSlot &&
+        apt.status !== 'Cancelled'
+    );
+
+    if (isSlotTaken) {
+      setValidationError('This slot has just been reserved by another patient. Please select a different time slot.');
+      // Refresh available slots in the UI to reflect new bookings
+      const updatedSlots = availableSlots.map(slot => {
+        if (slot.time === selectedSlot) {
+          return { ...slot, isBooked: true };
+        }
+        return slot;
+      });
+      setAvailableSlots(updatedSlots);
+      setSelectedSlot('');
       return;
     }
 
@@ -187,8 +213,9 @@ export default function BookAppointment() {
     };
 
     // Save to DB
-    const updatedApts = [...appointments, newAppointment];
+    const updatedApts = [...latestAppointments, newAppointment];
     setDB(DB_KEYS.APPOINTMENTS, updatedApts);
+    setAppointments(updatedApts);
 
     setCreatedApt(newAppointment);
     setShowConfirmModal(true);

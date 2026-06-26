@@ -56,10 +56,43 @@ export default function ManageDepartments() {
   };
 
   const handleDelete = (deptId) => {
-    if (window.confirm('Are you sure you want to delete this department?')) {
-      const updated = departments.filter((d) => d.departmentId !== deptId);
-      setDB(DB_KEYS.DEPARTMENTS, updated);
-      setDepartments(updated);
+    if (window.confirm('Are you sure you want to delete this department? All assigned doctors, schedules, and active appointments will be removed or cancelled.')) {
+      const deptToDelete = departments.find(d => d.departmentId === deptId);
+      if (!deptToDelete) return;
+
+      const deptName = deptToDelete.departmentName;
+
+      // Filter departments
+      const updatedDepts = departments.filter((d) => d.departmentId !== deptId);
+      setDB(DB_KEYS.DEPARTMENTS, updatedDepts);
+      setDepartments(updatedDepts);
+
+      // Delete assigned doctors
+      const allDoctors = getDB(DB_KEYS.DOCTORS);
+      const doctorsToDelete = allDoctors.filter(doc => doc.department === deptName);
+      const updatedDoctors = allDoctors.filter(doc => doc.department !== deptName);
+      setDB(DB_KEYS.DOCTORS, updatedDoctors);
+
+      // Delete doctor logins from users
+      const allUsers = getDB(DB_KEYS.USERS);
+      const doctorIdsToDelete = doctorsToDelete.map(d => d.doctorId);
+      const updatedUsers = allUsers.filter(u => !doctorIdsToDelete.includes(u.id));
+      setDB(DB_KEYS.USERS, updatedUsers);
+
+      // Delete schedules belonging to the department or those doctors
+      const allSchedules = getDB(DB_KEYS.SCHEDULES);
+      const updatedSchedules = allSchedules.filter(sch => sch.department !== deptName && !doctorIdsToDelete.includes(sch.doctorId));
+      setDB(DB_KEYS.SCHEDULES, updatedSchedules);
+
+      // Cancel appointments in that department or with those doctors
+      const allAppointments = getDB(DB_KEYS.APPOINTMENTS);
+      const updatedAppointments = allAppointments.map(apt => {
+        if (apt.department === deptName || doctorIdsToDelete.includes(apt.doctorId)) {
+          return { ...apt, status: 'Cancelled' };
+        }
+        return apt;
+      });
+      setDB(DB_KEYS.APPOINTMENTS, updatedAppointments);
     }
   };
 
@@ -72,15 +105,56 @@ export default function ManageDepartments() {
     e.preventDefault();
     if (!editingDept) return;
 
+    const originalDept = departments.find(d => d.departmentId === editingDept.departmentId);
+    if (!originalDept) return;
+
+    const oldName = originalDept.departmentName;
+    const newName = editingDept.departmentName.trim();
+
+    // Save department
     const updated = departments.map((d) => {
       if (d.departmentId === editingDept.departmentId) {
-        return editingDept;
+        return { ...editingDept, departmentName: newName };
       }
       return d;
     });
 
     setDB(DB_KEYS.DEPARTMENTS, updated);
     setDepartments(updated);
+
+    // If department name was changed, sync changes to other tables
+    if (oldName !== newName) {
+      // Sync Doctors
+      const allDoctors = getDB(DB_KEYS.DOCTORS);
+      const updatedDoctors = allDoctors.map(doc => {
+        if (doc.department === oldName) {
+          return { ...doc, department: newName };
+        }
+        return doc;
+      });
+      setDB(DB_KEYS.DOCTORS, updatedDoctors);
+
+      // Sync Schedules
+      const allSchedules = getDB(DB_KEYS.SCHEDULES);
+      const updatedSchedules = allSchedules.map(sch => {
+        if (sch.department === oldName) {
+          return { ...sch, department: newName };
+        }
+        return sch;
+      });
+      setDB(DB_KEYS.SCHEDULES, updatedSchedules);
+
+      // Sync Appointments
+      const allAppointments = getDB(DB_KEYS.APPOINTMENTS);
+      const updatedAppointments = allAppointments.map(apt => {
+        if (apt.department === oldName) {
+          return { ...apt, department: newName };
+        }
+        return apt;
+      });
+      setDB(DB_KEYS.APPOINTMENTS, updatedAppointments);
+    }
+
     setShowEditModal(false);
     setEditingDept(null);
   };

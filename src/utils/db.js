@@ -9,6 +9,24 @@ export const DB_KEYS = {
   APPOINTMENTS: 'appointments',
 };
 
+// Simple Base64 encoding/decoding helpers for password obfuscation
+export const encodePassword = (password) => {
+  try {
+    return btoa(password);
+  } catch (e) {
+    return password;
+  }
+};
+
+export const decodePassword = (encoded) => {
+  try {
+    return atob(encoded);
+  } catch (e) {
+    return encoded;
+  }
+};
+
+
 // Generic storage getters and setters
 export const getDB = (key) => {
   try {
@@ -411,6 +429,27 @@ export const DEFAULT_DOCTORS = [
 export const seedDatabase = () => {
   // 1. Seed Users (Admin, Patient templates)
   let users = getDB(DB_KEYS.USERS);
+
+  // Upgrader self-healing: Ensure all existing users have obfuscated passwords
+  let isUsersObfuscated = false;
+  if (users && users.length > 0) {
+    users = users.map(u => {
+      try {
+        const decoded = atob(u.password);
+        if (btoa(decoded) === u.password) {
+          return u; // Already encoded
+        }
+      } catch (e) {
+        // Not base64
+      }
+      isUsersObfuscated = true;
+      return { ...u, password: encodePassword(u.password) };
+    });
+    if (isUsersObfuscated) {
+      setDB(DB_KEYS.USERS, users);
+    }
+  }
+
   if (!users || users.length === 0) {
     users = [
       {
@@ -418,7 +457,7 @@ export const seedDatabase = () => {
         name: "Dr. Smith",
         email: "admin@hospital.com",
         role: "admin",
-        password: "admin123",
+        password: encodePassword("admin123"),
         phone: "555-0199",
       },
       // Sample Patients
@@ -427,7 +466,7 @@ export const seedDatabase = () => {
         name: "Alex Johnson",
         email: "alex@patient.com",
         role: "patient",
-        password: "patient123",
+        password: encodePassword("patient123"),
         phone: "123-456-7890",
         gender: "Male",
         dob: "1990-01-15",
@@ -437,7 +476,7 @@ export const seedDatabase = () => {
         name: "Jane Doe",
         email: "jane@patient.com",
         role: "patient",
-        password: "patient123",
+        password: encodePassword("patient123"),
         phone: "987-654-3210",
         gender: "Female",
         dob: "1992-05-20",
@@ -447,7 +486,7 @@ export const seedDatabase = () => {
         name: "Michael Scott",
         email: "michael@patient.com",
         role: "patient",
-        password: "patient123",
+        password: encodePassword("patient123"),
         phone: "555-555-5555",
         gender: "Male",
         dob: "1980-03-15",
@@ -560,7 +599,7 @@ export const seedDatabase = () => {
         name: doc.doctorName,
         email: doc.email,
         role: "doctor",
-        password: "doctor123",
+        password: encodePassword("doctor123"),
         phone: doc.phone
       });
       isUsersUpdated = true;

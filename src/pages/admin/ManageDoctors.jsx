@@ -20,7 +20,7 @@ export default function ManageDoctors() {
   });
 
   const handleDelete = (docId) => {
-    if (window.confirm('Are you sure you want to delete this doctor?')) {
+    if (window.confirm('Are you sure you want to delete this doctor? Their schedules will be deleted and all appointments will be cancelled.')) {
       const updated = doctors.filter((d) => d.doctorId !== docId);
       // Also delete from users login list
       const users = getDB(DB_KEYS.USERS);
@@ -29,6 +29,21 @@ export default function ManageDoctors() {
       setDB(DB_KEYS.DOCTORS, updated);
       setDB(DB_KEYS.USERS, updatedUsers);
       setDoctors(updated);
+
+      // Remove schedules
+      const schedules = getDB(DB_KEYS.SCHEDULES);
+      const updatedSchedules = schedules.filter((s) => s.doctorId !== docId);
+      setDB(DB_KEYS.SCHEDULES, updatedSchedules);
+
+      // Cancel appointments
+      const appointments = getDB(DB_KEYS.APPOINTMENTS);
+      const updatedAppointments = appointments.map((apt) => {
+        if (apt.doctorId === docId) {
+          return { ...apt, status: 'Cancelled' };
+        }
+        return apt;
+      });
+      setDB(DB_KEYS.APPOINTMENTS, updatedAppointments);
     }
   };
 
@@ -40,6 +55,10 @@ export default function ManageDoctors() {
   const handleSaveEdit = (e) => {
     e.preventDefault();
     if (!editingDoc) return;
+
+    // Get original doctor details
+    const originalDoc = doctors.find((d) => d.doctorId === editingDoc.doctorId);
+    if (!originalDoc) return;
 
     // Update doctors database
     const updated = doctors.map((d) => {
@@ -66,6 +85,40 @@ export default function ManageDoctors() {
     setDB(DB_KEYS.DOCTORS, updated);
     setDB(DB_KEYS.USERS, updatedUsers);
     setDoctors(updated);
+
+    // Sync changes to Schedules if Name or Department changed
+    if (originalDoc.doctorName !== editingDoc.doctorName || originalDoc.department !== editingDoc.department || JSON.stringify(originalDoc.availableDays) !== JSON.stringify(editingDoc.availableDays)) {
+      const schedules = getDB(DB_KEYS.SCHEDULES);
+      const updatedSchedules = schedules.map((s) => {
+        if (s.doctorId === editingDoc.doctorId) {
+          return {
+            ...s,
+            doctorName: editingDoc.doctorName,
+            department: editingDoc.department,
+            availableDays: editingDoc.availableDays
+          };
+        }
+        return s;
+      });
+      setDB(DB_KEYS.SCHEDULES, updatedSchedules);
+    }
+
+    // Sync changes to Appointments if Name or Department changed
+    if (originalDoc.doctorName !== editingDoc.doctorName || originalDoc.department !== editingDoc.department) {
+      const appointments = getDB(DB_KEYS.APPOINTMENTS);
+      const updatedAppointments = appointments.map((apt) => {
+        if (apt.doctorId === editingDoc.doctorId) {
+          return {
+            ...apt,
+            doctorName: editingDoc.doctorName,
+            department: editingDoc.department
+          };
+        }
+        return apt;
+      });
+      setDB(DB_KEYS.APPOINTMENTS, updatedAppointments);
+    }
+
     setShowEditModal(false);
     setEditingDoc(null);
   };
