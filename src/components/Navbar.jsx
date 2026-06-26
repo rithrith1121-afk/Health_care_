@@ -34,10 +34,10 @@ export default function Navbar() {
   };
 
   const linkStyle = ({ isActive }) =>
-    `px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-300 flex items-center gap-1.5 ${
+    `px-4 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 ease-out flex items-center gap-1.5 ${
       isActive
         ? 'bg-medTeal/10 text-medDarkTeal shadow-sm shadow-teal-700/5 font-bold scale-[1.02]'
-        : 'text-slate-600 hover:bg-slate-50 hover:text-medTeal hover:scale-[1.01]'
+        : 'text-slate-600 hover:bg-slate-50 hover:text-medTeal hover:scale-[1.01] active:scale-[0.99]'
     }`;
 
   return (
@@ -59,18 +59,15 @@ export default function Navbar() {
         {/* Navigation Links: Centered and Spaced */}
         {user && (
           <nav className="hidden md:flex items-center space-x-3 lg:space-x-5 px-6">
-            {user.role === 'patient' && (
-              <NavLink to="/patient-dashboard" className={linkStyle}>
-                Dashboard
-              </NavLink>
-            )}
-            
             <NavLink to="/home" className={linkStyle}>
               Home
             </NavLink>
 
             {user.role === 'patient' && (
               <>
+                <NavLink to="/patient-dashboard" className={linkStyle}>
+                  Dashboard
+                </NavLink>
                 <NavLink to="/departments" className={linkStyle}>
                   Departments
                 </NavLink>
